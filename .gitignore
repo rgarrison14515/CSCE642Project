@@ -1,0 +1,29 @@
+# Python cache / bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+*.log
+
+# Virtual envs
+venv/
+.env/
+
+# IDE/project files
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# (Later) experiment outputs
+runs/
+results/
+checkpoints/
+plots/
