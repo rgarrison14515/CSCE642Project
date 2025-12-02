@@ -14,12 +14,15 @@ class SumoEnv:
         warmup_steps: int = 100,
         max_steps: int = 3600,
         use_gui: bool = True,
+        mode: str = "baseline",  # "baseline" or "presslight"
     ):
         """
-        Baseline SUMO environment that controls a single traffic light.
+        SUMO environment that controls a single traffic light.
 
         cfg_path: path to .sumocfg (e.g. sumo_env/configs/3x3.sumocfg)
         tls_id:   traffic light ID to control (e.g. 'B1')
+        mode:     "baseline"  -> simple queue-based state/reward
+                  "presslight" -> pressure-based state/reward
         """
         self.cfg_path = cfg_path
         self.tls_id = tls_id
@@ -28,11 +31,15 @@ class SumoEnv:
         self.warmup_steps = warmup_steps
         self.max_steps = max_steps
         self.use_gui = use_gui
+        self.mode = mode
 
         self.sumo_binary = sumolib.checkBinary("sumo-gui" if use_gui else "sumo")
         self.lanes = None
         self.num_phases = None
         self.sim_step = 0
+
+        # For PressLight: list of (incoming_lane, outgoing_lane) controlled by this TLS
+        self.movements = []
 
     # ---------- startup / shutdown ----------
 
@@ -80,6 +87,7 @@ class SumoEnv:
         # cache lanes controlled by this TL and number of phases
         lanes = traci.trafficlight.getControlledLanes(self.tls_id)
         self.lanes = list(dict.fromkeys(lanes))
+
         # Get the full program logic and infer number of phases
         programs = traci.trafficlight.getCompleteRedYellowGreenDefinition(self.tls_id)
         if not programs:
@@ -88,8 +96,27 @@ class SumoEnv:
         logic = programs[0]  # use the first (default) program
         self.num_phases = len(logic.phases)
 
+        # For PressLight: build list of lane-to-lane movements (l, m)
+        # getControlledLinks returns, for each link index, a list of connections:
+        #   (incoming_lane, outgoing_lane, via_lane)
+        self.movements = []
+        links = traci.trafficlight.getControlledLinks(self.tls_id)
+        for conn_list in links:
+            if not conn_list:
+                continue
+            inc_lane, out_lane, _via = conn_list[0]
+            self.movements.append((inc_lane, out_lane))
+
+        # dedupe (l, m) while preserving order
+        self.movements = list(dict.fromkeys(self.movements))
+
         print("  TLS", self.tls_id, "controls lanes:", self.lanes)
         print("  num_phases:", self.num_phases)
+        print("  mode:", self.mode)
+        if self.mode == "presslight":
+            print("  movements (incoming -> outgoing):")
+            for (l, m) in self.movements:
+                print("    ", l, "->", m)
 
         return self._get_state()
 
@@ -131,23 +158,54 @@ class SumoEnv:
 
     def _get_state(self):
         """
-        Baseline state:
-        - vehicle count on each lane controlled by this TLS
-        - current phase index appended at the end
+        State depends on mode:
+
+        - baseline:
+            [ vehicle_count(lane_0), ..., vehicle_count(lane_n), current_phase ]
+
+        - presslight:
+            For each movement (l, m):
+                x(l), x(m)
+            ... then current_phase appended.
         """
+        current_phase = traci.trafficlight.getPhase(self.tls_id)
+
+        if self.mode == "presslight" and self.movements:
+            state_vals = []
+            for (inc, out) in self.movements:
+                x_in = traci.lane.getLastStepVehicleNumber(inc)
+                x_out = traci.lane.getLastStepVehicleNumber(out)
+                state_vals.extend([x_in, x_out])
+
+            state_vals.append(current_phase)
+            return np.array(state_vals, dtype=np.float32)
+
+        # fallback / baseline
         lane_counts = [
             traci.lane.getLastStepVehicleNumber(lane_id) for lane_id in self.lanes
         ]
-        current_phase = traci.trafficlight.getPhase(self.tls_id)
         lane_counts.append(current_phase)
-
         return np.array(lane_counts, dtype=np.float32)
 
     def _get_reward(self):
         """
-        Baseline reward: negative total number of stopped vehicles on all
-        lanes controlled by this TLS.
+        Reward depends on mode:
+
+        - baseline:
+            negative total number of stopped vehicles on all lanes
+        - presslight:
+            negative total pressure:
+                sum over movements (l, m) of (x(l) - x(m))
         """
+        if self.mode == "presslight" and self.movements:
+            total_pressure = 0.0
+            for (inc, out) in self.movements:
+                x_in = traci.lane.getLastStepVehicleNumber(inc)
+                x_out = traci.lane.getLastStepVehicleNumber(out)
+                total_pressure += (x_in - x_out)
+            return -float(total_pressure)
+
+        # baseline
         halted = [
             traci.lane.getLastStepHaltingNumber(lane_id) for lane_id in self.lanes
         ]
