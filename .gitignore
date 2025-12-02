@@ -27,3 +27,7 @@ runs/
 results/
 checkpoints/
 plots/
+
+*.npy
+*.pt 
+sumo_error.log

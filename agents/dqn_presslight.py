@@ -63,6 +63,12 @@ def train_presslight(
         mode="presslight",
     )
 
+    # --- logging containers ---
+    episode_rewards = []
+    losses = []
+    epsilons = []
+
+    # init env once to infer dims
     state = env.reset()
     state_dim = state.shape[0]
     action_dim = env.num_phases
@@ -123,19 +129,36 @@ def train_presslight(
                 loss.backward()
                 optimizer.step()
 
+                # --- log loss ---
+                losses.append(loss.item())
+
             if done:
                 break
 
+        # decay epsilon AFTER each episode
         epsilon = max(epsilon_end, epsilon * epsilon_decay)
 
+        # target network update
         if (ep + 1) % target_update_every == 0:
             target_net.load_state_dict(policy_net.state_dict())
+
+        # --- log episode-level stuff ---
+        episode_rewards.append(episode_reward)
+        epsilons.append(epsilon)
 
         print(
             f"[PressLight] Episode {ep+1}/{episodes} | reward={episode_reward:.1f} | epsilon={epsilon:.3f}"
         )
 
+    # --- save logs & model at end ---
+    np.save("presslight_rewards.npy", np.array(episode_rewards, dtype=np.float32))
+    np.save("presslight_losses.npy", np.array(losses, dtype=np.float32))
+    np.save("presslight_epsilons.npy", np.array(epsilons, dtype=np.float32))
+
+    torch.save(policy_net.state_dict(), "presslight_model.pt")
+
     env.close()
+    return episode_rewards
 
 
 if __name__ == "__main__":

@@ -16,6 +16,14 @@ class SumoEnv:
         use_gui: bool = True,
         mode: str = "baseline",  # "baseline" or "presslight"
     ):
+        
+
+        """
+        PressLight mode implements the state and reward from Wei et al. (KDD 2019). 
+        State = [incoming lane segments, outgoing lane queues, phase], reward = 
+        -intersection pressure, where movement pressure is w(l,m) = x(l) - x(m).
+        """
+
         """
         SUMO environment that controls a single traffic light.
 

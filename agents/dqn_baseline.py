@@ -55,6 +55,7 @@ def train_baseline(
     target_update_every=5,
     max_steps_per_episode=500,
 ):
+    # Default mode in SumoEnv is baseline-style reward/state
     env = SumoEnv(cfg_path=cfg_path, tls_id=tls_id, use_gui=False)
 
     state = env.reset()
@@ -72,6 +73,11 @@ def train_baseline(
 
     epsilon = epsilon_start
 
+    # ---- logging containers ----
+    episode_rewards = []
+    epsilons = []
+    losses = []
+
     for ep in range(episodes):
         state = env.reset()
         episode_reward = 0.0
@@ -82,7 +88,9 @@ def train_baseline(
                 action = random.randrange(action_dim)
             else:
                 with torch.no_grad():
-                    s_t = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
+                    s_t = torch.tensor(
+                        state, dtype=torch.float32, device=device
+                    ).unsqueeze(0)
                     q_vals = policy_net(s_t)
                     action = int(q_vals.argmax(dim=1).item())
 
@@ -102,7 +110,9 @@ def train_baseline(
                 batch_ns = torch.tensor(batch_ns, dtype=torch.float32, device=device)
                 batch_d = torch.tensor(batch_d, dtype=torch.float32, device=device)
 
-                q_values = policy_net(batch_s).gather(1, batch_a.unsqueeze(1)).squeeze(1)
+                q_values = policy_net(batch_s).gather(
+                    1, batch_a.unsqueeze(1)
+                ).squeeze(1)
 
                 with torch.no_grad():
                     next_q_values = target_net(batch_ns).max(dim=1)[0]
@@ -113,17 +123,36 @@ def train_baseline(
                 loss.backward()
                 optimizer.step()
 
+                losses.append(loss.item())
+
             if done:
                 break
 
+        # decay epsilon
         epsilon = max(epsilon_end, epsilon * epsilon_decay)
 
+        # log episode-level stats
+        episode_rewards.append(episode_reward)
+        epsilons.append(epsilon)
+
+        # periodically update target network
         if (ep + 1) % target_update_every == 0:
             target_net.load_state_dict(policy_net.state_dict())
 
-        print(f"Episode {ep+1}/{episodes} | reward={episode_reward:.1f} | epsilon={epsilon:.3f}")
+        print(
+            f"[Baseline] Episode {ep+1}/{episodes} | "
+            f"reward={episode_reward:.1f} | epsilon={epsilon:.3f}"
+        )
 
     env.close()
+
+    # ---- save logs & model ----
+    np.save("baseline_rewards.npy", np.array(episode_rewards, dtype=np.float32))
+    np.save("baseline_losses.npy", np.array(losses, dtype=np.float32))
+    np.save("baseline_epsilons.npy", np.array(epsilons, dtype=np.float32))
+
+    torch.save(policy_net.state_dict(), "baseline_model.pt")
+    print("Saved baseline logs and model to disk.")
 
 
 if __name__ == "__main__":
