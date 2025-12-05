@@ -218,3 +218,16 @@ class SumoEnv:
             traci.lane.getLastStepHaltingNumber(lane_id) for lane_id in self.lanes
         ]
         return -float(sum(halted))
+    
+    def get_total_queue(self) -> float:
+        """
+        Returns the total number of halted vehicles on all lanes
+        controlled by this traffic light. Useful as a shared
+        evaluation metric for different agents.
+        """
+        if self.lanes is None:
+            return 0.0
+        halted = [
+            traci.lane.getLastStepHaltingNumber(lane_id) for lane_id in self.lanes
+        ]
+        return float(sum(halted))
