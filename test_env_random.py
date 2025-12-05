@@ -1,6 +1,21 @@
 import numpy as np
 from sumo_env.env import SumoEnv   # adjust if env.py is in a subfolder
 
+
+"""
+test_env_random.py
+
+Quick sanity check for SumoEnv in both modes.
+
+- Starts SUMO on the 3x3 grid (TLS "B1").
+- Runs a fixed number of steps with a random policy over phases.
+- Prints per-step rewards and the active phase.
+Useful to verify that:
+    - TraCI starts cleanly.
+    - The traffic light can be controlled without errors.
+"""
+
+
 CFG_PATH = "sumo_env/configs/3x3.sumocfg"
 TLS_ID = "B1"   # from your list_tls_ids output
 

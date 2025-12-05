@@ -1,6 +1,20 @@
 # presslight_smoke_test.py
 from sumo_env import SumoEnv
 
+"""
+presslight_smoke_test.py
+
+Smoke test for PressLight-specific state and reward.
+
+- Starts SumoEnv(mode="presslight") on the 3x3 grid.
+- Prints:
+    * Detected movements (incoming -> outgoing lane pairs).
+    * Initial PressLight state vector and its shape.
+    * A few random steps with their rewards.
+Use this to confirm PressLight state construction and pressure computation.
+"""
+
+
 def main():
     env = SumoEnv(
         cfg_path="sumo_env/configs/3x3.sumocfg",

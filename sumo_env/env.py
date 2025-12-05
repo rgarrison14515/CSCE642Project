@@ -19,18 +19,21 @@ class SumoEnv:
         
 
         """
-        PressLight mode implements the state and reward from Wei et al. (KDD 2019). 
-        State = [incoming lane segments, outgoing lane queues, phase], reward = 
-        -intersection pressure, where movement pressure is w(l,m) = x(l) - x(m).
-        """
+        sumo_env.env
 
-        """
-        SUMO environment that controls a single traffic light.
+        SUMO + TraCI environment for a single controlled intersection.
 
-        cfg_path: path to .sumocfg (e.g. sumo_env/configs/3x3.sumocfg)
-        tls_id:   traffic light ID to control (e.g. 'B1')
-        mode:     "baseline"  -> simple queue-based state/reward
-                  "presslight" -> pressure-based state/reward
+        Key ideas:
+        - Controls exactly one traffic light (e.g., TLS "B1") on a 3x3 grid.
+        - Two modes:
+            mode="baseline"   -> simple state (lane counts + current phase),
+                                reward = - (# halted vehicles on incoming lanes).
+            mode="presslight" -> PressLight-style state (per-movement queue + pressure),
+                                reward = - (sum of movement pressures).
+        - Used by:
+            - agents/dqn_baseline.py
+            - agents/dqn_presslight.py
+            - test_env_random.py, presslight_smoke_test.py, evaluation scripts.
         """
         self.cfg_path = cfg_path
         self.tls_id = tls_id
@@ -39,7 +42,7 @@ class SumoEnv:
         self.warmup_steps = warmup_steps
         self.max_steps = max_steps
         self.use_gui = use_gui
-        self.mode = mode
+        self.mode = mode # "baseline" or "presslight"; switches state/reward definition
 
         self.sumo_binary = sumolib.checkBinary("sumo-gui" if use_gui else "sumo")
         self.lanes = None

@@ -2,6 +2,22 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+"""
+plot_training_curves.py
+
+Generates plots for training behavior of baseline and PressLight.
+
+- Loads rewards and/or losses from:
+    * baseline_rewards.npy / baseline_losses.npy
+    * presslight_rewards.npy / presslight_losses.npy
+- Plots:
+    * Reward vs. episode (optionally smoothed).
+    * Loss vs. training step (optional).
+
+Use this to create figures for the report.
+"""
+
+
 def main():
     baseline_rewards = np.load("baseline_rewards.npy")
     press_rewards = np.load("presslight_rewards.npy")

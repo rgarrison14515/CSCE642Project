@@ -10,6 +10,21 @@ import torch.optim as optim
 from sumo_env import SumoEnv
 
 
+"""
+agents.dqn_baseline
+
+Simple DQN baseline on a single SUMO intersection.
+
+- Uses SumoEnv(mode="baseline"):
+    * State: lane vehicle counts + current phase index.
+    * Reward: negative number of halted vehicles on incoming lanes.
+- Trains a small MLP to choose the next phase.
+- Logs:
+    * baseline_rewards.npy   (per-episode returns)
+    * baseline_losses.npy    (per-batch TD loss)
+    * baseline_model.pt      (trained DQN weights)
+"""
+
 class DQN(nn.Module):
     def __init__(self, state_dim, action_dim):
         super().__init__()
@@ -156,4 +171,4 @@ def train_baseline(
 
 
 if __name__ == "__main__":
-    train_baseline()
+    train_baseline(episodes=100)

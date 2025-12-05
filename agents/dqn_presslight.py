@@ -10,6 +10,23 @@ import torch.optim as optim
 from sumo_env import SumoEnv
 
 
+"""
+agents.dqn_presslight
+
+PressLight-style DQN on a single SUMO intersection.
+
+Differences vs baseline:
+- Uses SumoEnv(mode="presslight"):
+    * State: concatenated per-movement (l -> m) vehicle counts and pressures.
+    * Reward: negative total max-pressure at the intersection
+      (as in the PressLight paper).
+- Network architecture is the same MLP as the baseline; only state/reward change.
+- Logs:
+    * presslight_rewards.npy
+    * presslight_losses.npy
+    * presslight_model.pt
+"""
+
 class DQN(nn.Module):
     def __init__(self, state_dim, action_dim):
         super().__init__()
@@ -162,4 +179,4 @@ def train_presslight(
 
 
 if __name__ == "__main__":
-    train_presslight()
+    train_presslight(episodes=100)
